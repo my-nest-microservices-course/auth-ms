@@ -18,10 +18,10 @@ COPY --from=deps /usr/src/app/node_modules ./node_modules
 
 COPY . . 
 
+RUN npx prisma generate
 RUN npm run build
 # only production necessary dependencies (reduce image size)
 RUN npm ci -f --only=production && npm cache clean --force
-RUN npx prisma generate
 
 
 ## Creation image stage ##
