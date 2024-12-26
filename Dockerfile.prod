@@ -1,0 +1,41 @@
+
+## dependencies stage ##
+FROM node:21-alpine3.19 as deps
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+COPY package-lock.json ./
+
+RUN npm install
+
+
+## Builder stage ##
+FROM node:21-alpine3.19 as builder
+WORKDIR /usr/src/app
+
+# when using --from=<as name> origin->destiny
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+
+COPY . . 
+
+RUN npm run build
+# only production necessary dependencies (reduce image size)
+RUN npm ci -f --only=production && npm cache clean --force
+RUN npx prisma generate
+
+
+## Creation image stage ##
+FROM node:21-alpine3.19 as prod
+
+WORKDIR /usr/src/app
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+
+ENV NODE_ENV=production
+# create an user called "node" and use to run the application
+USER node
+
+EXPOSE 3000
+
+CMD [ "node", "dist/main.js" ]
